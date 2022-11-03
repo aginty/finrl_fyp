@@ -9,11 +9,11 @@ import numpy as np
 import pandas as pd
 from gym import spaces
 from gym.utils import seeding
-from stable_baselines3_fyp.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 matplotlib.use("Agg")
 
-# from stable_baselines3_fyp.common.logger import Logger, KVWriter, CSVOutputFormat
+# from stable_baselines3.common.logger import Logger, KVWriter, CSVOutputFormat
 
 
 class StockTradingEnv(gym.Env):
