@@ -11,11 +11,11 @@ import joblib
 import optuna
 import pandas as pd
 from main import check_and_make_directories
-from stable_baselines3 import A2C
-from stable_baselines3 import DDPG
-from stable_baselines3 import PPO
-from stable_baselines3 import SAC
-from stable_baselines3 import TD3
+from sb3_fyp import A2C
+from sb3_fyp import DDPG
+from sb3_fyp import PPO
+from sb3_fyp import SAC
+from sb3_fyp import TD3
 
 from finrl import config
 from finrl.agents.stablebaselines3.models import DRLAgent
