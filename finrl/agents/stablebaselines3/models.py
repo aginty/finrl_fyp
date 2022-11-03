@@ -5,15 +5,15 @@ import time
 
 import numpy as np
 import pandas as pd
-from sb3_fyp import A2C
-from sb3_fyp import DDPG
-from sb3_fyp import PPO
-from sb3_fyp import SAC
-from sb3_fyp import TD3
-from sb3_fyp.common.callbacks import BaseCallback
-from sb3_fyp.common.noise import NormalActionNoise
-from sb3_fyp.common.noise import OrnsteinUhlenbeckActionNoise
-from sb3_fyp.common.vec_env import DummyVecEnv
+from stable_baselines3 import A2C
+from stable_baselines3 import DDPG
+from stable_baselines3 import PPO
+from stable_baselines3 import SAC
+from stable_baselines3 import TD3
+from stable_baselines3.common.callbacks import BaseCallback
+from stable_baselines3.common.noise import NormalActionNoise
+from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 from finrl import config
 from finrl.meta.env_stock_trading.env_stocktrading import StockTradingEnv
