@@ -58,7 +58,7 @@ class StockTradingEnv(gym.Env):
         self.obs_space_dim = obs_space_dim
         self.action_space = action_space
         self.tech_indicator_list = tech_indicator_list
-        self.action_space = spaces.Box(low=-1, high=1, shape=(self.action_space,))
+        self.action_space = spaces.Box(low=-1, high=1, shape=(1,self.action_space))
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(self.obs_space_dim,)
         )
