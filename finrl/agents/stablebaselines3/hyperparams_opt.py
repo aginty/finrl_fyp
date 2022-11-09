@@ -382,17 +382,17 @@ def sample_td3_params(trial: optuna.Trial) -> dict[str, Any]:
         "tau": tau,
     }
 
-    if noise_type == "normal":
-        hyperparams["action_noise"] = NormalActionNoise(
-            mean=np.zeros(trial.n_actions), sigma=noise_std * np.ones(trial.n_actions)
-        )
-    elif noise_type == "ornstein-uhlenbeck":
-        hyperparams["action_noise"] = OrnsteinUhlenbeckActionNoise(
-            mean=np.zeros(trial.n_actions), sigma=noise_std * np.ones(trial.n_actions)
-        )
+    # if noise_type == "normal":
+    #     hyperparams["action_noise"] = NormalActionNoise(
+    #         mean=np.zeros(trial.n_actions), sigma=noise_std * np.ones(trial.n_actions)
+    #     )
+    # elif noise_type == "ornstein-uhlenbeck":
+    #     hyperparams["action_noise"] = OrnsteinUhlenbeckActionNoise(
+    #         mean=np.zeros(trial.n_actions), sigma=noise_std * np.ones(trial.n_actions)
+    #     )
 
-    if trial.using_her_replay_buffer:
-        hyperparams = sample_her_params(trial, hyperparams)
+    # if trial.using_her_replay_buffer:
+    #     hyperparams = sample_her_params(trial, hyperparams)
 
     return hyperparams
 
