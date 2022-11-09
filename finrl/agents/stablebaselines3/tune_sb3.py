@@ -6,7 +6,8 @@ from pprint import pprint
 from typing import Tuple
 from typing import Union
 
-import hyperparams_opt as hpt
+# import hyperparams_opt as hpt
+from finrl.agents.stablebaselines3.hyperparams_opt import sample_td3_params
 import joblib
 import optuna
 import pandas as pd
