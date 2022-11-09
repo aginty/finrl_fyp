@@ -116,16 +116,17 @@ class TuneSB3Optuna:
         )
 
     def default_sample_hyperparameters(self, trial: optuna.Trial):
-        if self.model_name == "a2c":
-            return hpt.sample_a2c_params(trial)
-        elif self.model_name == "ddpg":
-            return hpt.sample_ddpg_params(trial)
-        elif self.model_name == "td3":
-            return hpt.sample_td3_params(trial)
-        elif self.model_name == "sac":
-            return hpt.sample_sac_params(trial)
-        elif self.model_name == "ppo":
-            return hpt.sample_ppo_params(trial)
+        # if self.model_name == "a2c":
+        #     return hpt.sample_a2c_params(trial)
+        # elif self.model_name == "ddpg":
+        #     return hpt.sample_ddpg_params(trial)
+        # elif self.model_name == "td3":
+        #     return hpt.sample_td3_params(trial)
+        # elif self.model_name == "sac":
+        #     return hpt.sample_sac_params(trial)
+        # elif self.model_name == "ppo":
+        #     return hpt.sample_ppo_params(trial)
+        return sample_td3_params(trial)
 
     def calculate_sharpe(self, df: pd.DataFrame):
         df["daily_return"] = df["account_value"].pct_change(1)
