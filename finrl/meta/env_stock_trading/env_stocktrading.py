@@ -449,7 +449,7 @@ class StockTradingEnv(gym.Env):
                     + [self.data.close]
                     + self.previous_state[
                         (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
-                    ]]
+                    ]
                     # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
                 )
                 observed_state = np.asarray(self.data[self.tech_inidicator_list])
