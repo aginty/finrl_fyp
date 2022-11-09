@@ -355,7 +355,7 @@ class StockTradingEnv(gym.Env):
                 self.unobserved_state
             )  # add current state in state_recorder for each step
 
-        return self.observed_state self.reward, self.terminal, {}
+        return self.observed_state, self.reward, self.terminal, {}
 
     def reset(self):
         # initiate state
