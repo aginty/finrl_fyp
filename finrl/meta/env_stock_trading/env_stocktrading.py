@@ -423,7 +423,7 @@ class StockTradingEnv(gym.Env):
                     + [0] * self.stock_dim
                     # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
                 )
-                observed_state = np.asarray(self.data[self.tech_inidicator_list])
+                observed_state = np.asarray(self.data[self.tech_indicator_list])
         else:
             # Using Previous State
             if len(self.df.tic.unique()) > 1:
@@ -452,7 +452,7 @@ class StockTradingEnv(gym.Env):
                     ]
                     # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
                 )
-                observed_state = np.asarray(self.data[self.tech_inidicator_list])
+                observed_state = np.asarray(self.data[self.tech_indicator_list])
         return observed_state, unobserved_state
 
     def _update_state(self):
