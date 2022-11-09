@@ -31,14 +31,14 @@ class StockTradingEnv(gym.Env):
         buy_cost_pct: list[float],
         sell_cost_pct: list[float],
         reward_scaling: float,
-        state_space: int,
+        obs_space_dim: int, #changed from original `state_space`
         action_space: int,
         tech_indicator_list: list[str],
         turbulence_threshold=None,
         risk_indicator_col="turbulence",
         make_plots: bool = False,
         print_verbosity=10,
-        day=0,
+        day=0, #because of 0 indexing this will be the number of historic days
         initial=True,
         previous_state=[],
         model_name="",
@@ -46,6 +46,7 @@ class StockTradingEnv(gym.Env):
         iteration="",
     ):
         self.day = day
+        self.num_historic_days = self.day #same as day initially but does not change with day
         self.df = df
         self.stock_dim = stock_dim
         self.hmax = hmax
@@ -54,14 +55,14 @@ class StockTradingEnv(gym.Env):
         self.buy_cost_pct = buy_cost_pct
         self.sell_cost_pct = sell_cost_pct
         self.reward_scaling = reward_scaling
-        self.state_space = state_space
+        self.obs_space_dim = obs_space_dim
         self.action_space = action_space
         self.tech_indicator_list = tech_indicator_list
         self.action_space = spaces.Box(low=-1, high=1, shape=(self.action_space,))
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(self.state_space,)
+            low=-np.inf, high=np.inf, shape=(self.obs_space_dim,)
         )
-        self.data = self.df.loc[self.day, :]
+        self.data = self.df.loc[self.day - self.num_historic_days: self.day] #num_historic + today
         self.terminal = False
         self.make_plots = make_plots
         self.print_verbosity = print_verbosity
@@ -73,7 +74,7 @@ class StockTradingEnv(gym.Env):
         self.mode = mode
         self.iteration = iteration
         # initalize state
-        self.state = self._initiate_state()
+        self.unobserved_state, self.observed_state = self._initiate_state() #change this**
 
         # initialize reward
         self.reward = 0
@@ -223,17 +224,17 @@ class StockTradingEnv(gym.Env):
             # print(f"Episode: {self.episode}")
             if self.make_plots:
                 self._make_plot()
-            end_total_asset = self.state[0] + sum(
-                np.array(self.state[1 : (self.stock_dim + 1)])
-                * np.array(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+            end_total_asset = self.unobserved_state[0] + sum(
+                np.array(self.unobserved_state[1 : (self.stock_dim + 1)])
+                * np.array(self.unobserved_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
             )
             df_total_value = pd.DataFrame(self.asset_memory)
             tot_reward = (
-                self.state[0]
+                self.unobserved_state[0]
                 + sum(
-                    np.array(self.state[1 : (self.stock_dim + 1)])
+                    np.array(self.unobserved_state[1 : (self.stock_dim + 1)])
                     * np.array(
-                        self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)]
+                        self.unobserved_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)]
                     )
                 )
                 - self.asset_memory[0]
@@ -298,7 +299,7 @@ class StockTradingEnv(gym.Env):
             # logger.record("environment/total_cost", self.cost)
             # logger.record("environment/total_trades", self.trades)
 
-            return self.state, self.reward, self.terminal, {}
+            return self.unobserved_state, self.observed_state, self.reward, self.terminal, {}
 
         else:
             actions = actions * self.hmax  # actions initially is scaled between 0 to 1
@@ -396,6 +397,7 @@ class StockTradingEnv(gym.Env):
         return self.state
 
     def _initiate_state(self):
+        unobserved_state = None #haven't edited all strands e.g. for multi-stock trading
         if self.initial:
             # For Initial State
             if len(self.df.tic.unique()) > 1:
@@ -413,13 +415,14 @@ class StockTradingEnv(gym.Env):
                     )
                 )  # append initial stocks_share to initial state, instead of all zero
             else:
-                # for single stock
-                state = (
+                # for single stock ***
+                unobserved_state = (
                     [self.initial_amount]
                     + [self.data.close]
                     + [0] * self.stock_dim
-                    + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+                    # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
                 )
+                unobserved_state = np.asarray(self.data[self.tech_inidicator_list])
         else:
             # Using Previous State
             if len(self.df.tic.unique()) > 1:
@@ -448,7 +451,7 @@ class StockTradingEnv(gym.Env):
                     ]
                     + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
                 )
-        return state
+        return observed_state, unobserved_state
 
     def _update_state(self):
         if len(self.df.tic.unique()) > 1:
