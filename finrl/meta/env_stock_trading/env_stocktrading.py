@@ -103,27 +103,27 @@ class StockTradingEnv(gym.Env):
     def _sell_stock(self, index, action):
         def _do_sell_normal():
             if (
-                self.state[index + 2 * self.stock_dim + 1] != True
+                self.unobserved_state[index + 2 * self.stock_dim + 1] != True
             ):  # check if the stock is able to sell, for simlicity we just add it in techical index
                 # if self.state[index + 1] > 0: # if we use price<0 to denote a stock is unable to trade in that day, the total asset calculation may be wrong for the price is unreasonable
                 # Sell only if the price is > 0 (no missing data in this particular date)
                 # perform sell action based on the sign of the action
-                if self.state[index + self.stock_dim + 1] > 0:
+                if self.unobserved_state[index + self.stock_dim + 1] > 0:
                     # Sell only if current asset is > 0
                     sell_num_shares = min(
-                        abs(action), self.state[index + self.stock_dim + 1]
+                        abs(action), self.unobserved_state[index + self.stock_dim + 1]
                     )
                     sell_amount = (
-                        self.state[index + 1]
+                        self.unobserved_state[index + 1]
                         * sell_num_shares
                         * (1 - self.sell_cost_pct[index])
                     )
                     # update balance
-                    self.state[0] += sell_amount
+                    self.unobserved_state[0] += sell_amount
 
-                    self.state[index + self.stock_dim + 1] -= sell_num_shares
+                    self.unobserved_state[index + self.stock_dim + 1] -= sell_num_shares
                     self.cost += (
-                        self.state[index + 1]
+                        self.unobserved_state[index + 1]
                         * sell_num_shares
                         * self.sell_cost_pct[index]
                     )
@@ -138,22 +138,22 @@ class StockTradingEnv(gym.Env):
         # perform sell action based on the sign of the action
         if self.turbulence_threshold is not None:
             if self.turbulence >= self.turbulence_threshold:
-                if self.state[index + 1] > 0:
+                if self.unobserved_state[index + 1] > 0:
                     # Sell only if the price is > 0 (no missing data in this particular date)
                     # if turbulence goes over threshold, just clear out all positions
-                    if self.state[index + self.stock_dim + 1] > 0:
+                    if self.unobserved_state[index + self.stock_dim + 1] > 0:
                         # Sell only if current asset is > 0
-                        sell_num_shares = self.state[index + self.stock_dim + 1]
+                        sell_num_shares = self.unobserved_state[index + self.stock_dim + 1]
                         sell_amount = (
-                            self.state[index + 1]
+                            self.unobserved_state[index + 1]
                             * sell_num_shares
                             * (1 - self.sell_cost_pct[index])
                         )
                         # update balance
-                        self.state[0] += sell_amount
-                        self.state[index + self.stock_dim + 1] = 0
+                        self.unobserved_state[0] += sell_amount
+                        self.unobserved_state[index + self.stock_dim + 1] = 0
                         self.cost += (
-                            self.state[index + 1]
+                            self.unobserved_state[index + 1]
                             * sell_num_shares
                             * self.sell_cost_pct[index]
                         )
@@ -172,28 +172,28 @@ class StockTradingEnv(gym.Env):
     def _buy_stock(self, index, action):
         def _do_buy():
             if (
-                self.state[index + 2 * self.stock_dim + 1] != True
+                self.unobserved_state[index + 2 * self.stock_dim + 1] != True
             ):  # check if the stock is able to buy
                 # if self.state[index + 1] >0:
                 # Buy only if the price is > 0 (no missing data in this particular date)
-                available_amount = self.state[0] // (
-                    self.state[index + 1] * (1 + self.buy_cost_pct[index])
+                available_amount = self.unobserved_state[0] // (
+                    self.unobserved_state[index + 1] * (1 + self.buy_cost_pct[index])
                 )  # when buying stocks, we should consider the cost of trading when calculating available_amount, or we may be have cash<0
                 # print('available_amount:{}'.format(available_amount))
 
                 # update balance
                 buy_num_shares = min(available_amount, action)
                 buy_amount = (
-                    self.state[index + 1]
+                    self.unobserved_state[index + 1]
                     * buy_num_shares
                     * (1 + self.buy_cost_pct[index])
                 )
-                self.state[0] -= buy_amount
+                self.unobserved_state[0] -= buy_amount
 
-                self.state[index + self.stock_dim + 1] += buy_num_shares
+                self.unobserved_state[index + self.stock_dim + 1] += buy_num_shares
 
                 self.cost += (
-                    self.state[index + 1] * buy_num_shares * self.buy_cost_pct[index]
+                    self.unobserved_state[index + 1] * buy_num_shares * self.buy_cost_pct[index]
                 )
                 self.trades += 1
             else:
@@ -299,7 +299,7 @@ class StockTradingEnv(gym.Env):
             # logger.record("environment/total_cost", self.cost)
             # logger.record("environment/total_trades", self.trades)
 
-            return self.unobserved_state, self.observed_state, self.reward, self.terminal, {}
+            return self.observed_state, self.reward, self.terminal, {}
 
         else:
             actions = actions * self.hmax  # actions initially is scaled between 0 to 1
@@ -309,9 +309,9 @@ class StockTradingEnv(gym.Env):
             if self.turbulence_threshold is not None:
                 if self.turbulence >= self.turbulence_threshold:
                     actions = np.array([-self.hmax] * self.stock_dim)
-            begin_total_asset = self.state[0] + sum(
-                np.array(self.state[1 : (self.stock_dim + 1)])
-                * np.array(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+            begin_total_asset = self.unobserved_state[0] + sum(
+                np.array(self.unobserved_state[1 : (self.stock_dim + 1)])
+                * np.array(self.unobserved_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
             )
             # print("begin_total_asset:{}".format(begin_total_asset))
 
@@ -334,17 +334,17 @@ class StockTradingEnv(gym.Env):
 
             # state: s -> s+1
             self.day += 1
-            self.data = self.df.loc[self.day, :]
+            self.data = self.df.loc[self.day - self.num_historic_days: self.day]
             if self.turbulence_threshold is not None:
                 if len(self.df.tic.unique()) == 1:
-                    self.turbulence = self.data[self.risk_indicator_col]
+                    self.turbulence = self.data[self.risk_indicator_col][self.day] #only need the current days risk
                 elif len(self.df.tic.unique()) > 1:
-                    self.turbulence = self.data[self.risk_indicator_col].values[0]
-            self.state = self._update_state()
+                    self.turbulence = self.data[self.risk_indicator_col][self.day].values[0]
+            self.unobserved_state, self.observed_state = self._update_state()
 
-            end_total_asset = self.state[0] + sum(
-                np.array(self.state[1 : (self.stock_dim + 1)])
-                * np.array(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+            end_total_asset = self.unobserved_state[0] + sum(
+                np.array(self.unobserved_state[1 : (self.stock_dim + 1)])
+                * np.array(self.unobserved_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
             )
             self.asset_memory.append(end_total_asset)
             self.date_memory.append(self._get_date())
@@ -352,21 +352,21 @@ class StockTradingEnv(gym.Env):
             self.rewards_memory.append(self.reward)
             self.reward = self.reward * self.reward_scaling
             self.state_memory.append(
-                self.state
+                self.unobserved_state
             )  # add current state in state_recorder for each step
 
-        return self.state, self.reward, self.terminal, {}
+        return self.observed_state self.reward, self.terminal, {}
 
     def reset(self):
         # initiate state
-        self.state = self._initiate_state()
+        self.unobserved_state, self.observed_state = self._initiate_state()
 
         if self.initial:
             self.asset_memory = [
                 self.initial_amount
                 + np.sum(
                     np.array(self.num_stock_shares)
-                    * np.array(self.state[1 : 1 + self.stock_dim])
+                    * np.array(self.unobserved_state[1 : 1 + self.stock_dim])
                 )
             ]
         else:
@@ -379,7 +379,7 @@ class StockTradingEnv(gym.Env):
             self.asset_memory = [previous_total_asset]
 
         self.day = 0
-        self.data = self.df.loc[self.day, :]
+        self.data = self.df.loc[self.day - self.num_historic_days : self.day]
         self.turbulence = 0
         self.cost = 0
         self.trades = 0
@@ -391,13 +391,14 @@ class StockTradingEnv(gym.Env):
 
         self.episode += 1
 
-        return self.state
+        return self.unobserved_state, self.observed_state
 
     def render(self, mode="human", close=False):
         return self.state
 
     def _initiate_state(self):
-        unobserved_state = None #haven't edited all strands e.g. for multi-stock trading
+        observed_state = None #haven't edited all strands e.g. for multi-stock trading
+        unobserved_state = None
         if self.initial:
             # For Initial State
             if len(self.df.tic.unique()) > 1:
@@ -422,7 +423,7 @@ class StockTradingEnv(gym.Env):
                     + [0] * self.stock_dim
                     # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
                 )
-                unobserved_state = np.asarray(self.data[self.tech_inidicator_list])
+                observed_state = np.asarray(self.data[self.tech_inidicator_list])
         else:
             # Using Previous State
             if len(self.df.tic.unique()) > 1:
@@ -443,18 +444,21 @@ class StockTradingEnv(gym.Env):
                 )
             else:
                 # for single stock
-                state = (
+                unobserved_state = (
                     [self.previous_state[0]]
                     + [self.data.close]
                     + self.previous_state[
                         (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
-                    ]
-                    + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+                    ]]
+                    # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
                 )
+                observed_state = np.asarray(self.data[self.tech_inidicator_list])
         return observed_state, unobserved_state
 
     def _update_state(self):
         if len(self.df.tic.unique()) > 1:
+            unobserved_state = None
+            observed_state = None #only working with single stock trading for now
             # for multiple stock
             state = (
                 [self.state[0]]
@@ -471,14 +475,16 @@ class StockTradingEnv(gym.Env):
 
         else:
             # for single stock
-            state = (
+            unobserved_state = (
                 [self.state[0]]
                 + [self.data.close]
                 + list(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
-                + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+                # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
             )
 
-        return state
+            observed_state = np.asarray(self.data[self.tech_indicator_list])
+
+        return unobserved_state, observed_state
 
     def _get_date(self):
         if len(self.df.tic.unique()) > 1:
