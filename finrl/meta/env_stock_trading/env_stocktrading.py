@@ -60,7 +60,7 @@ class StockTradingEnv(gym.Env):
         self.tech_indicator_list = tech_indicator_list
         self.action_space = spaces.Box(low=-1, high=1, shape=(self.action_space,))
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(1,self.obs_space_dim)
+            low=-np.inf, high=np.inf, shape=(self.obs_space_dim,)
         )
         self.data = self.df.loc[self.day - self.num_historic_days: self.day] #num_historic + today
         self.terminal = False
