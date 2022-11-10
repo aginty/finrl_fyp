@@ -479,9 +479,9 @@ class StockTradingEnv(gym.Env):
         else:
             # for single stock
             unobserved_state = (
-                [self.state[0]]
+                [self.unobserved_state[0]]
                 + [self.data.close]
-                + list(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+                + list(self.unobserved_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
                 # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
             )
 
