@@ -104,7 +104,7 @@ class StockTradingEnv(gym.Env):
         def _do_sell_normal():
             if (
                 # self.unobserved_state[index + 2 * self.stock_dim + 1] != True
-                self.observed_state[0] != True
+                self.observed_state[-1][0] != True
             ):  # check if the stock is able to sell, for simlicity we just add it in techical index
                 # if self.state[index + 1] > 0: # if we use price<0 to denote a stock is unable to trade in that day, the total asset calculation may be wrong for the price is unreasonable
                 # Sell only if the price is > 0 (no missing data in this particular date)
@@ -174,7 +174,7 @@ class StockTradingEnv(gym.Env):
         def _do_buy():
             if (
                 # self.unobserved_state[index + 2 * self.stock_dim + 1] != True
-                self.observed_state[0] != True
+                self.observed_state[-1][0] != True
             ):  # check if the stock is able to buy
                 # if self.state[index + 1] >0:
                 # Buy only if the price is > 0 (no missing data in this particular date)
