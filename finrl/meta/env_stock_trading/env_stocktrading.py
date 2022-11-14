@@ -216,17 +216,17 @@ class BaseStockTradingEnv(gym.Env, ABC):
 
             return buy_num_shares
 
-        # perform buy action based on the sign of the action
-        if self.turbulence_threshold is None:
-            buy_num_shares = _do_buy()
-        else:
-            if self.turbulence < self.turbulence_threshold:
+            # perform buy action based on the sign of the action
+            if self.turbulence_threshold is None:
                 buy_num_shares = _do_buy()
             else:
-                buy_num_shares = 0
-                pass
+                if self.turbulence < self.turbulence_threshold:
+                    buy_num_shares = _do_buy()
+                else:
+                    buy_num_shares = 0
+                    pass
 
-        return buy_num_shares
+            return buy_num_shares
 
     def _make_plot(self):
         plt.plot(self.asset_memory, "r")
