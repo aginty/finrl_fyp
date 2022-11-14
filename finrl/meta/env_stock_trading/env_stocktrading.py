@@ -484,7 +484,7 @@ class FinRLStockTradingEnv(BaseStockTradingEnv):
         buy_cost_pct: list[float],
         sell_cost_pct: list[float],
         reward_scaling: float,
-        obs_space_dim: int, #changed from original `state_space` ??? here or in extended classes
+        state_space_dim: int, #changed from original `state_space` ??? here or in extended classes
         action_space: int,
         tech_indicator_list: list[str], #should this be here?
         turbulence_threshold=None,
@@ -508,7 +508,7 @@ class FinRLStockTradingEnv(BaseStockTradingEnv):
             buy_cost_pct=buy_cost_pct,
             sell_cost_pct=sell_cost_pct,
             reward_scaling=reward_scaling,
-            obs_space_dim=obs_space_dim, #changed from original `state_space` ??? here or in extended classes
+            state_space_dim=state_space_dim, #changed from original `state_space` ??? here or in extended classes
             action_space=action_space,
             tech_indicator_list=tech_indicator_list, #should this be here?
             turbulence_threshold=turbulence_threshold,
