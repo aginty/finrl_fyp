@@ -93,7 +93,7 @@ class BaseStockTradingEnv(gym.Env, ABC):
             self.initial_amount
             + np.sum(
                 np.array(self.num_stock_shares)
-                * np.array(self.unobserved_state[1 : 1 + self.stock_dim])
+                * np.array(self.state[1 : 1 + self.stock_dim])
             )
         ]  # the initial total asset is calculated by cash + sum (num_share_stock_i * price_stock_i)
         self.rewards_memory = []
@@ -378,7 +378,7 @@ class BaseStockTradingEnv(gym.Env, ABC):
         """
 
     def render(self, mode="human", close=False):
-        return self.observed_state
+        return self.state
 
     @abstractmethod
     def _initiate_state(self):
