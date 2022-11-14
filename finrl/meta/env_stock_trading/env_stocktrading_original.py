@@ -1,4 +1,3 @@
-#New/Modified StockTrading Env
 from __future__ import annotations
 
 from typing import List
@@ -11,14 +10,13 @@ import pandas as pd
 from gym import spaces
 from gym.utils import seeding
 from stable_baselines3.common.vec_env import DummyVecEnv
-from abc import ABC, abstractmethod
 
 matplotlib.use("Agg")
 
 # from stable_baselines3.common.logger import Logger, KVWriter, CSVOutputFormat
 
 
-class BaseStockTradingEnv(gym.Env, ABC):
+class StockTradingEnv(gym.Env):
     """A stock trading environment for OpenAI gym"""
 
     metadata = {"render.modes": ["human"]}
@@ -33,9 +31,9 @@ class BaseStockTradingEnv(gym.Env, ABC):
         buy_cost_pct: list[float],
         sell_cost_pct: list[float],
         reward_scaling: float,
-        state_space_dim: int, #changed from original `state_space` 
+        obs_space_dim: int, #changed from original `state_space`
         action_space: int,
-        tech_indicator_list: list[str] = [], #added default empty list - allow for no tech indicators e.g. 1D closing stock time series
+        tech_indicator_list: list[str],
         turbulence_threshold=None,
         risk_indicator_col="turbulence",
         make_plots: bool = False,
@@ -49,9 +47,6 @@ class BaseStockTradingEnv(gym.Env, ABC):
     ):
         self.day = day
         self.num_historic_days = self.day #same as day initially but does not change with day
-        if self.num_historic_days > 0:
-            self.is_time_series_analysis = True
-        self.is_time_series_analysis = False
         self.df = df
         self.stock_dim = stock_dim
         self.hmax = hmax
@@ -60,14 +55,14 @@ class BaseStockTradingEnv(gym.Env, ABC):
         self.buy_cost_pct = buy_cost_pct
         self.sell_cost_pct = sell_cost_pct
         self.reward_scaling = reward_scaling
-        self.state_space_dim = state_space_dim #???
-        self.action_space = action_space 
-        self.tech_indicator_list = tech_indicator_list #???
+        self.obs_space_dim = obs_space_dim
+        self.action_space = action_space
+        self.tech_indicator_list = tech_indicator_list
         self.action_space = spaces.Box(low=-1, high=1, shape=(self.action_space,))
         self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(1,self.state_space_dim)
-        ) 
-        self.data = self.df.loc[self.day - self.num_historic_days: self.day+1] 
+            low=-np.inf, high=np.inf, shape=(1,self.obs_space_dim)
+        )
+        self.data = self.df.loc[self.day - self.num_historic_days: self.day] #num_historic + today
         self.terminal = False
         self.make_plots = make_plots
         self.print_verbosity = print_verbosity
@@ -80,7 +75,6 @@ class BaseStockTradingEnv(gym.Env, ABC):
         self.iteration = iteration
         # initalize state
         self.observed_state, self.unobserved_state = self._initiate_state() #change this**
-        self.state = self.get_state_representation()
 
         # initialize reward
         self.reward = 0
@@ -105,15 +99,6 @@ class BaseStockTradingEnv(gym.Env, ABC):
         #         self.logger = Logger('results',[CSVOutputFormat])
         # self.reset()
         self._seed()
-
-    @abstractmethod
-    def get_state_representation(self):
-        """
-        return the state representation, 
-        * observed + unobserved (original FinRL implemnetation)
-        * observed only (if using past n days - timeseries e.g. CNN)
-        * timeseries 1D -> past N days
-        """
 
     def _sell_stock(self, index, action):
         def _do_sell_normal():
@@ -358,7 +343,6 @@ class BaseStockTradingEnv(gym.Env, ABC):
                 elif len(self.df.tic.unique()) > 1:
                     self.turbulence = self.data[self.risk_indicator_col][self.day].values[0]
             self.observed_state, self.unobserved_state = self._update_state()
-            self.state = self.get_state_representation
 
             end_total_asset = self.unobserved_state[0] + sum(
                 np.array(self.unobserved_state[1 : (self.stock_dim + 1)])
@@ -373,26 +357,138 @@ class BaseStockTradingEnv(gym.Env, ABC):
                 self.observed_state
             )  # add current state in state_recorder for each step
 
-        return self.state, self.reward, self.terminal, {} 
-        #the view of the state returned here is what is visible in SB3
+        return self.observed_state, self.reward, self.terminal, {}
 
-    @abstractmethod
     def reset(self):
-        """
-        """
+        # initiate state
+        self.observed_state, self.unobserved_state = self._initiate_state()
+
+        if self.initial:
+            self.asset_memory = [
+                self.initial_amount
+                + np.sum(
+                    np.array(self.num_stock_shares)
+                    * np.array(self.unobserved_state[1 : 1 + self.stock_dim])
+                )
+            ]
+        else:
+            previous_total_asset = self.previous_state[0] + sum(
+                np.array(self.state[1 : (self.stock_dim + 1)])
+                * np.array(
+                    self.previous_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)]
+                )
+            )
+            self.asset_memory = [previous_total_asset]
+
+        self.day = 0
+        self.data = self.df.loc[self.day - self.num_historic_days : self.day]
+        self.turbulence = 0
+        self.cost = 0
+        self.trades = 0
+        self.terminal = False
+        # self.iteration=self.iteration
+        self.rewards_memory = []
+        self.actions_memory = []
+        self.date_memory = [self._get_date()]
+
+        self.episode += 1
+
+        return self.observed_state#, self.unobserved_state
 
     def render(self, mode="human", close=False):
         return self.observed_state
 
-    @abstractmethod
     def _initiate_state(self):
-        """
-        """
+        observed_state = None #haven't edited all strands e.g. for multi-stock trading
+        unobserved_state = None
+        if self.initial:
+            # For Initial State
+            if len(self.df.tic.unique()) > 1:
+                # for multiple stock
+                state = (
+                    [self.initial_amount]
+                    + self.data.close.values.tolist()
+                    + self.num_stock_shares
+                    + sum(
+                        (
+                            self.data[tech].values.tolist()
+                            for tech in self.tech_indicator_list
+                        ),
+                        [],
+                    )
+                )  # append initial stocks_share to initial state, instead of all zero
+            else:
+                # for single stock ***
+                unobserved_state = (
+                    [self.initial_amount]
+                    + self.data.close.values.tolist()
+                    + [0] * self.stock_dim
+                    # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+                )
+                observed_state = np.asarray(self.data[self.tech_indicator_list]).tolist()
+        else:
+            # Using Previous State
+            if len(self.df.tic.unique()) > 1:
+                # for multiple stock
+                state = (
+                    [self.previous_state[0]]
+                    + self.data.close.values.tolist()
+                    + self.previous_state[
+                        (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
+                    ]
+                    + sum(
+                        (
+                            self.data[tech].values.tolist()
+                            for tech in self.tech_indicator_list
+                        ),
+                        [],
+                    )
+                )
+            else:
+                # for single stock
+                unobserved_state = (
+                    [self.previous_state[0]]
+                    + self.data.close.values.tolist()
+                    + self.previous_state[
+                        (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
+                    ]
+                    # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+                )
+                observed_state = np.asarray(self.data[self.tech_indicator_list]).tolist()
+        print("observed_state type", type(observed_state))
+        return observed_state, unobserved_state
 
-    @abstractmethod
     def _update_state(self):
-        """
-        """
+        if len(self.df.tic.unique()) > 1:
+            unobserved_state = None
+            observed_state = None #only working with single stock trading for now
+            # for multiple stock
+            state = (
+                [self.state[0]]
+                + self.data.close.values.tolist()
+                + list(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+                + sum(
+                    (
+                        self.data[tech].values.tolist()
+                        for tech in self.tech_indicator_list
+                    ),
+                    [],
+                )
+            )
+
+        else:
+            # for single stock
+            unobserved_state = (
+                [self.unobserved_state[0]]
+                + self.data.close.values.tolist()
+                + list(self.unobserved_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+                # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+            )
+
+            observed_state = np.asarray(self.data[self.tech_indicator_list]).tolist()
+            
+
+        return observed_state, unobserved_state
 
     def _get_date(self):
         if len(self.df.tic.unique()) > 1:
@@ -467,190 +563,3 @@ class BaseStockTradingEnv(gym.Env, ABC):
         e = DummyVecEnv([lambda: self])
         obs = e.reset()
         return e, obs
-
-
-class FinRLStockTradingEnv(BaseStockTradingEnv):
-    """A stock trading environment for OpenAI gym"""
-
-    metadata = {"render.modes": ["human"]}
-
-    def __init__(
-        self,
-        df: pd.DataFrame,
-        stock_dim: int,
-        hmax: int,
-        initial_amount: int,
-        num_stock_shares: list[int],
-        buy_cost_pct: list[float],
-        sell_cost_pct: list[float],
-        reward_scaling: float,
-        obs_space_dim: int, #changed from original `state_space` ??? here or in extended classes
-        action_space: int,
-        tech_indicator_list: list[str], #should this be here?
-        turbulence_threshold=None,
-        risk_indicator_col="turbulence",
-        make_plots: bool = False,
-        print_verbosity=10,
-        day=0, #because of 0 indexing this will be the number of historic days ??
-        initial=True,
-        previous_state=[],
-        model_name="",
-        mode="",
-        iteration="",
-    ): 
-
-        super().__init__(
-            df=df,
-            stock_dim=stock_dim,
-            hmax=hmax,
-            initial_amount=initial_amount,
-            num_stock_shares=num_stock_shares,
-            buy_cost_pct=buy_cost_pct,
-            sell_cost_pct=sell_cost_pct,
-            reward_scaling=reward_scaling,
-            obs_space_dim=obs_space_dim, #changed from original `state_space` ??? here or in extended classes
-            action_space=action_space,
-            tech_indicator_list=tech_indicator_list, #should this be here?
-            turbulence_threshold=turbulence_threshold,
-            risk_indicator_col=risk_indicator_col,
-            make_plots= make_plots,
-            print_verbosity=print_verbosity,
-            day=0, #because of 0 indexing this will be the number of historic days ??
-            initial=initial,
-            previous_state=previous_state,
-            model_name=model_name,
-            mode=mode,
-            iteration=iteration
-        )
-
-    def get_state_representation(self):
-        return self.observed_state + self.unobserved_state 
-
-
-    def reset(self):
-        # initiate state
-        self.observed_state, self.unobserved_state = self._initiate_state()
-
-        if self.initial:
-            self.asset_memory = [
-                self.initial_amount
-                + np.sum(
-                    np.array(self.num_stock_shares)
-                    * np.array(self.unobserved_state[1 : 1 + self.stock_dim])
-                )
-            ]
-        else:
-            previous_total_asset = self.previous_state[0] + sum(
-                np.array(self.state[1 : (self.stock_dim + 1)])
-                * np.array(
-                    self.previous_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)]
-                )
-            )
-            self.asset_memory = [previous_total_asset]
-
-        self.day = 0
-        self.data = self.df.loc[self.day - self.num_historic_days : self.day]
-        self.turbulence = 0
-        self.cost = 0
-        self.trades = 0
-        self.terminal = False
-        # self.iteration=self.iteration
-        self.rewards_memory = []
-        self.actions_memory = []
-        self.date_memory = [self._get_date()]
-
-        self.episode += 1
-        self.state = self.get_state_representation()
-        return self.state #self.observed_state#, self.unobserved_state
-
-    def _initiate_state(self):
-        observed_state = None #haven't edited all strands e.g. for multi-stock trading
-        unobserved_state = None
-        if self.initial:
-            # For Initial State
-            if len(self.df.tic.unique()) > 1:
-                # for multiple stock
-                state = (
-                    [self.initial_amount]
-                    + self.data.close.values.tolist()
-                    + self.num_stock_shares
-                    + sum(
-                        (
-                            self.data[tech].values.tolist()
-                            for tech in self.tech_indicator_list
-                        ),
-                        [],
-                    )
-                )  # append initial stocks_share to initial state, instead of all zero
-            else:
-                # for single stock ***
-                unobserved_state = (
-                    [self.initial_amount]
-                    + self.data.close.values.tolist()
-                    + [0] * self.stock_dim
-                    # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
-                )
-                observed_state = np.asarray(self.data[self.tech_indicator_list]).tolist()
-        else:
-            # Using Previous State
-            if len(self.df.tic.unique()) > 1:
-                # for multiple stock
-                state = (
-                    [self.previous_state[0]]
-                    + self.data.close.values.tolist()
-                    + self.previous_state[
-                        (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
-                    ]
-                    + sum(
-                        (
-                            self.data[tech].values.tolist()
-                            for tech in self.tech_indicator_list
-                        ),
-                        [],
-                    )
-                )
-            else:
-                # for single stock
-                unobserved_state = (
-                    [self.previous_state[0]]
-                    + self.data.close.values.tolist()
-                    + self.previous_state[
-                        (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
-                    ]
-                    # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
-                )
-                observed_state = np.asarray(self.data[self.tech_indicator_list]).tolist()
-        return observed_state, unobserved_state
-
-
-    def _update_state(self):
-        if len(self.df.tic.unique()) > 1:
-            unobserved_state = None
-            observed_state = None #only working with single stock trading for now
-            # for multiple stock
-            state = (
-                [self.state[0]]
-                + self.data.close.values.tolist()
-                + list(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
-                + sum(
-                    (
-                        self.data[tech].values.tolist()
-                        for tech in self.tech_indicator_list
-                    ),
-                    [],
-                )
-            )
-
-        else:
-            # for single stock
-            unobserved_state = (
-                [self.unobserved_state[0]]
-                + self.data.close.values.tolist()
-                + list(self.unobserved_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
-                # + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
-            )
-
-            observed_state = np.asarray(self.data[self.tech_indicator_list]).tolist()
-            
-
-        return observed_state, unobserved_state
