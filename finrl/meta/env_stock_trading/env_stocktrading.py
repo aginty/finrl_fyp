@@ -116,7 +116,7 @@ class BaseStockTradingEnv(gym.Env, ABC):
         """
 
     def _sell_stock(self, index, action):
-                def _do_sell_normal():
+        def _do_sell_normal():
             if (
                 self.state[index + 2 * self.stock_dim + 1] != True
             ):  # check if the stock is able to sell, for simlicity we just add it in techical index
