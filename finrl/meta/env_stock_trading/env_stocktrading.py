@@ -522,6 +522,9 @@ class FinRLStockTradingEnv(BaseStockTradingEnv):
     def get_state_representation(self):
         return self.state
 
+    def get_data_representation(self):
+        return self.df.loc[self.day, :]
+
 
     def reset(self):
         # initiate state
