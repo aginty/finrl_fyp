@@ -5,7 +5,7 @@ from finrl.config import RLlib_PARAMS
 from finrl.config import TEST_END_DATE
 from finrl.config import TEST_START_DATE
 from finrl.config_tickers import DOW_30_TICKER
-from finrl.meta.env_stock_trading.env_stocktrading import StockTradingEnvBase
+from finrl.meta.env_stock_trading.env_stocktrading import BaseStockTradingEnv
 
 
 def test(
@@ -82,7 +82,7 @@ def test(
 
 
 if __name__ == "__main__":
-    env = StockTradingEnvBase
+    env = BaseStockTradingEnv
 
     # demo for elegantrl
     kwargs = (
