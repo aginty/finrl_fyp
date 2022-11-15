@@ -65,9 +65,7 @@ class BaseStockTradingEnv(gym.Env, ABC):
         self.action_space = action_space 
         self.tech_indicator_list = tech_indicator_list #???
         self.action_space = spaces.Box(low=-1, high=1, shape=(self.action_space,))
-        self.observation_space = spaces.Box(
-            low=-np.inf, high=np.inf, shape=(1,self.state_space_dim)
-        ) 
+        self.observation_space = self.get_observation_space() 
         self.data = self.get_data_representation() 
         self.terminal = False
         self.make_plots = make_plots
@@ -81,6 +79,7 @@ class BaseStockTradingEnv(gym.Env, ABC):
         self.iteration = iteration
         # initalize state
         self.state = self._initiate_state()
+        self.observed_state = self.get_observed_state_representation()
 
         # initialize reward
         self.reward = 0
@@ -107,7 +106,12 @@ class BaseStockTradingEnv(gym.Env, ABC):
         self._seed()
 
     @abstractmethod
-    def get_state_representation(self):
+    def get_observation_space(self):
+        """
+        """
+
+    @abstractmethod
+    def get_observed_state_representation(self):
         """
         return the state representation, 
         * observed + unobserved (original FinRL implemnetation)
@@ -314,7 +318,7 @@ class BaseStockTradingEnv(gym.Env, ABC):
             # logger.record("environment/total_cost", self.cost)
             # logger.record("environment/total_trades", self.trades)
 
-            return self.state, self.reward, self.terminal, {}
+            return self.observed_state, self.reward, self.terminal, {}
 
         else:
             actions = actions * self.hmax  # actions initially is scaled between 0 to 1
@@ -349,7 +353,8 @@ class BaseStockTradingEnv(gym.Env, ABC):
 
             # state: s -> s+1
             self.day += 1
-            self.data = self.df.loc[self.day, :]
+            self.data = self.get_data_representation()
+            self.observed_state = self.get_observed_state_representation()
             if self.turbulence_threshold is not None:
                 if len(self.df.tic.unique()) == 1:
                     self.turbulence = self.data[self.risk_indicator_col]
@@ -370,7 +375,7 @@ class BaseStockTradingEnv(gym.Env, ABC):
                 self.state
             )  # add current state in state_recorder for each step
 
-        return self.state, self.reward, self.terminal, {}
+        return self.observed_state, self.reward, self.terminal, {}
 
     @abstractmethod
     def reset(self):
@@ -519,12 +524,14 @@ class FinRLStockTradingEnv(BaseStockTradingEnv):
             iteration=iteration
         )
 
-    def get_state_representation(self):
+    def get_observed_state_representation(self):
         return self.state
 
     def get_data_representation(self):
         return self.df.loc[self.day, :]
 
+    def get_observation_space(self):
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(self.state_space_dim,)) 
 
     def reset(self):
         # initiate state
@@ -561,6 +568,193 @@ class FinRLStockTradingEnv(BaseStockTradingEnv):
         self.episode += 1
 
         return self.state
+
+    def _initiate_state(self):
+        if self.initial:
+            # For Initial State
+            if len(self.df.tic.unique()) > 1:
+                # for multiple stock
+                state = (
+                    [self.initial_amount]
+                    + self.data.close.values.tolist()
+                    + self.num_stock_shares
+                    + sum(
+                        (
+                            self.data[tech].values.tolist()
+                            for tech in self.tech_indicator_list
+                        ),
+                        [],
+                    )
+                )  # append initial stocks_share to initial state, instead of all zero
+            else:
+                # for single stock
+                state = (
+                    [self.initial_amount]
+                    + [self.data.close]
+                    + [0] * self.stock_dim
+                    + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+                )
+        else:
+            # Using Previous State
+            if len(self.df.tic.unique()) > 1:
+                # for multiple stock
+                state = (
+                    [self.previous_state[0]]
+                    + self.data.close.values.tolist()
+                    + self.previous_state[
+                        (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
+                    ]
+                    + sum(
+                        (
+                            self.data[tech].values.tolist()
+                            for tech in self.tech_indicator_list
+                        ),
+                        [],
+                    )
+                )
+            else:
+                # for single stock
+                state = (
+                    [self.previous_state[0]]
+                    + [self.data.close]
+                    + self.previous_state[
+                        (self.stock_dim + 1) : (self.stock_dim * 2 + 1)
+                    ]
+                    + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+                )
+        return state
+
+    def _update_state(self):
+        if len(self.df.tic.unique()) > 1:
+            # for multiple stock
+            state = (
+                [self.state[0]]
+                + self.data.close.values.tolist()
+                + list(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+                + sum(
+                    (
+                        self.data[tech].values.tolist()
+                        for tech in self.tech_indicator_list
+                    ),
+                    [],
+                )
+            )
+
+        else:
+            # for single stock
+            state = (
+                [self.state[0]]
+                + [self.data.close]
+                + list(self.state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)])
+                + sum(([self.data[tech]] for tech in self.tech_indicator_list), [])
+            )
+
+        return state
+
+
+
+class OneDTSStockTradingEnv(BaseStockTradingEnv):
+    """A stock trading environment for OpenAI gym"""
+
+    metadata = {"render.modes": ["human"]}
+
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        stock_dim: int,
+        hmax: int,
+        initial_amount: int,
+        num_stock_shares: list[int],
+        buy_cost_pct: list[float],
+        sell_cost_pct: list[float],
+        reward_scaling: float,
+        state_space_dim: int, #changed from original `state_space` ??? here or in extended classes
+        action_space: int,
+        # tech_indicator_list: list[str], #should this be here?
+        ts_variable: str, #name of attribute in df for the 1D time series
+        turbulence_threshold=None,
+        risk_indicator_col="turbulence",
+        make_plots: bool = False,
+        print_verbosity=10,
+        day=10, #default 10 days in the past
+        initial=True,
+        previous_state=[],
+        model_name="",
+        mode="",
+        iteration="",
+    ): 
+
+        self.num_historic_days = self.day
+
+        super().__init__(
+            df=df,
+            stock_dim=stock_dim,
+            hmax=hmax,
+            initial_amount=initial_amount,
+            num_stock_shares=num_stock_shares,
+            buy_cost_pct=buy_cost_pct,
+            sell_cost_pct=sell_cost_pct,
+            reward_scaling=reward_scaling,
+            state_space_dim=state_space_dim, #changed from original `state_space` ??? here or in extended classes
+            action_space=action_space,
+            tech_indicator_list=[ts_variable], #should this be here?
+            turbulence_threshold=turbulence_threshold,
+            risk_indicator_col=risk_indicator_col,
+            make_plots= make_plots,
+            print_verbosity=print_verbosity,
+            day=day, 
+            initial=initial,
+            previous_state=previous_state,
+            model_name=model_name,
+            mode=mode,
+            iteration=iteration
+        )
+
+    def get_observed_state_representation(self):
+        return self.df.loc[self.day - self.num_historic_days : self.day][ts_variable]
+
+    def get_data_representation(self):
+        return self.df.loc[self.day - self.num_historic_days : self.day]
+
+    def get_observation_space(self):
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_historic_days,))  #I think this dimension is correct
+
+    def reset(self):
+        # initiate state
+        self.state = self._initiate_state()
+
+        if self.initial:
+            self.asset_memory = [
+                self.initial_amount
+                + np.sum(
+                    np.array(self.num_stock_shares)
+                    * np.array(self.state[1 : 1 + self.stock_dim])
+                )
+            ]
+        else:
+            previous_total_asset = self.previous_state[0] + sum(
+                np.array(self.state[1 : (self.stock_dim + 1)])
+                * np.array(
+                    self.previous_state[(self.stock_dim + 1) : (self.stock_dim * 2 + 1)]
+                )
+            )
+            self.asset_memory = [previous_total_asset]
+
+        self.day = 0
+        self.data = self.get_data_representation()
+        self.observed_state = self.get_observed_state_representation()
+        self.turbulence = 0
+        self.cost = 0
+        self.trades = 0
+        self.terminal = False
+        # self.iteration=self.iteration
+        self.rewards_memory = []
+        self.actions_memory = []
+        self.date_memory = [self._get_date()]
+
+        self.episode += 1
+
+        return self.observed_state
 
     def _initiate_state(self):
         if self.initial:
