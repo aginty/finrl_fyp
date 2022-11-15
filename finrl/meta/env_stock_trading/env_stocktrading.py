@@ -711,10 +711,10 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
         )
 
     def get_observed_state_representation(self):
-        return self.df.loc[self.day - self.num_historic_days : self.day][ts_variable]
+        return self.df.loc[self.day - self.num_historic_days : self.day][ts_variable].values.tolist() #as a list
 
     def get_data_representation(self):
-        return self.df.loc[self.day - self.num_historic_days : self.day]
+        return self.df.loc[self.day, :]
 
     def get_observation_space(self):
         return spaces.Box(low=-np.inf, high=np.inf, shape=(self.num_historic_days,))  #I think this dimension is correct
