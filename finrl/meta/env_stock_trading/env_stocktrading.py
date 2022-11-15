@@ -684,7 +684,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
         iteration="",
     ): 
 
-        self.num_historic_days = self.day
+        self.num_historic_days = day
 
         super().__init__(
             df=df,
