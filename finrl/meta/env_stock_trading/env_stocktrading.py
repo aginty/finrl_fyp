@@ -668,7 +668,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
         buy_cost_pct: list[float],
         sell_cost_pct: list[float],
         reward_scaling: float,
-        state_space_dim: int, #changed from original `state_space` ??? here or in extended classes
+        #state_space_dim: int, #changed from original `state_space` ??? here or in extended classes
         action_space: int,
         # tech_indicator_list: list[str], #should this be here?
         ts_variable: str, #name of attribute in df for the 1D time series
@@ -695,7 +695,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
             buy_cost_pct=buy_cost_pct,
             sell_cost_pct=sell_cost_pct,
             reward_scaling=reward_scaling,
-            state_space_dim=state_space_dim, #changed from original `state_space` ??? here or in extended classes
+            state_space_dim=self.num_historic_days+1, #state_space_dim, #changed from original `state_space` ??? here or in extended classes
             action_space=action_space,
             tech_indicator_list=[ts_variable], #should this be here?
             turbulence_threshold=turbulence_threshold,
