@@ -676,7 +676,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
         risk_indicator_col="turbulence",
         make_plots: bool = False,
         print_verbosity=10,
-        day=10, #default 10 days in the past
+        day=14, #default 10 days in the past
         initial=True,
         previous_state=[],
         model_name="",
