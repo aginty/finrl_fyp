@@ -685,6 +685,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
     ): 
 
         self.num_historic_days = day
+        self.ts_variable = ts_variable
 
         super().__init__(
             df=df,
@@ -711,7 +712,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
         )
 
     def get_observed_state_representation(self):
-        return self.df.loc[self.day - self.num_historic_days : self.day][ts_variable].values.tolist() #as a list
+        return self.df.loc[self.day - self.num_historic_days : self.day][self.ts_variable].values.tolist() #as a list
 
     def get_data_representation(self):
         return self.df.loc[self.day, :]
