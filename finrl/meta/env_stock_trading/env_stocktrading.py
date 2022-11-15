@@ -741,7 +741,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
             )
             self.asset_memory = [previous_total_asset]
 
-        self.day = 0
+        self.day = self.num_historic_days
         self.data = self.get_data_representation()
         self.observed_state = self.get_observed_state_representation()
         self.turbulence = 0
