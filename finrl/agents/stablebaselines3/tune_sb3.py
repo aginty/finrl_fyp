@@ -138,7 +138,7 @@ class TuneSB3Optuna:
 
     def objective(self, trial: optuna.Trial):
         hyperparameters = self.default_sample_hyperparameters(trial)
-        policy_kwargs = hyperparameters["policy_kwargs"]
+        policy_kwargs = hyperparameters["policy_kwargs"].update({"Actor":CNNActor})
         del hyperparameters["policy_kwargs"]
         model = self.agent.get_model(
             self.model_name, policy_kwargs=policy_kwargs, model_kwargs=hyperparameters

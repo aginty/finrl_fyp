@@ -354,22 +354,25 @@ def sample_td3_params(trial: optuna.Trial) -> dict[str, Any]:
     )
     gradient_steps = train_freq
 
+    kernel_size = trial.suggest_categorical("kernel_size", [2, 3, 5, 7, 11])
+    # num_historic_days = trial.suggest_categorical("num_historic_days", [2, 5, 10, 14, 20, 24, 29, 34])
+
     noise_type = trial.suggest_categorical(
         "noise_type", ["ornstein-uhlenbeck", "normal", None]
     )
     noise_std = trial.suggest_uniform("noise_std", 0, 1)
 
     # NOTE: Add "verybig" to net_arch when tuning HER
-    net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big"])
-    # activation_fn = trial.suggest_categorical('activation_fn', [nn.Tanh, nn.ReLU, nn.ELU, nn.LeakyReLU])
+    # net_arch = trial.suggest_categorical("net_arch", ["small", "medium", "big"])
+    # # activation_fn = trial.suggest_categorical('activation_fn', [nn.Tanh, nn.ReLU, nn.ELU, nn.LeakyReLU])
 
-    net_arch = {
-        "small": [64, 64],
-        "medium": [256, 256],
-        "big": [400, 300],
-        # Uncomment for tuning HER
-        # "verybig": [256, 256, 256],
-    }[net_arch]
+    # net_arch = {
+    #     "small": [64, 64],
+    #     "medium": [256, 256],
+    #     "big": [400, 300],
+    #     # Uncomment for tuning HER
+    #     # "verybig": [256, 256, 256],
+    # }[net_arch]
 
     hyperparams = {
         "gamma": gamma,
@@ -378,7 +381,8 @@ def sample_td3_params(trial: optuna.Trial) -> dict[str, Any]:
         "buffer_size": buffer_size,
         "train_freq": train_freq,
         "gradient_steps": gradient_steps,
-        "policy_kwargs": dict(net_arch=net_arch),
+        "policy_kwargs": dict(kernel_size=kernel_size),
+        # "env_kwargs": dict(num_historic_days=num_historic_days),
         "tau": tau,
     }
 
@@ -395,6 +399,7 @@ def sample_td3_params(trial: optuna.Trial) -> dict[str, Any]:
     #     hyperparams = sample_her_params(trial, hyperparams)
 
     return hyperparams
+
 
 
 def sample_ddpg_params(trial: optuna.Trial) -> dict[str, Any]:
