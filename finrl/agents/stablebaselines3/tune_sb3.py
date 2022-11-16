@@ -11,12 +11,13 @@ from finrl.agents.stablebaselines3.hyperparams_opt import sample_td3_params
 import joblib
 import optuna
 import pandas as pd
-from main import check_and_make_directories
+from finrl.main import check_and_make_directories
 from stable_baselines3 import A2C
 from stable_baselines3 import DDPG
 from stable_baselines3 import PPO
 from stable_baselines3 import SAC
 from stable_baselines3 import TD3
+from stable_baselines3.td3.policies import BaseActor, CNNActor
 
 from finrl import config
 from finrl.agents.stablebaselines3.models import DRLAgent
