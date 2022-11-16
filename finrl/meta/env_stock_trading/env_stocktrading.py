@@ -718,7 +718,7 @@ class OneDTSStockTradingEnv(BaseStockTradingEnv):
         return self.df.loc[self.day, :]
 
     def get_observation_space(self):
-        return spaces.Box(low=-np.inf, high=np.inf, shape=(self.state_space_dim,))  #I think this dimension is correct
+        return spaces.Box(low=-np.inf, high=np.inf, shape=(1,self.state_space_dim,))  #I think this dimension is correct
 
     def reset(self):
         # initiate state
